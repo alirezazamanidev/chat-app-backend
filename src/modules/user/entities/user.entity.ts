@@ -18,7 +18,7 @@ export class UserEntity extends BaseEntity {
   @UpdateDateColumn()
   updated_at: Date;
   @Column({nullable:true})
-  otpId:number
+  otpId:string
   @OneToOne(()=>OtpEntity,otp=>otp.user,{onDelete:'CASCADE'})
   otp:OtpEntity
 }

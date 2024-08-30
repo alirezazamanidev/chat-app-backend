@@ -10,7 +10,7 @@ export class OtpEntity extends BaseEntity {
     @Column()
     expiresIn:Date
     @Column()
-    userId:number
+    userId:string
     @OneToOne(()=>UserEntity,user=>user.otp)
     user:UserEntity
     @CreateDateColumn()
