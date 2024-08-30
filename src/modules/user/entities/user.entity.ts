@@ -1,6 +1,6 @@
 import { BaseEntity } from 'src/common/abstracts/baseEntity.abstract';
 import { EntityName } from 'src/common/enums/EntityNames.enum';
-import { Column, CreateDateColumn, Entity, OneToOne, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, UpdateDateColumn } from 'typeorm';
 import { OtpEntity } from './otp.entity';
 
 @Entity(EntityName.User)
@@ -20,5 +20,6 @@ export class UserEntity extends BaseEntity {
   @Column({nullable:true})
   otpId:string
   @OneToOne(()=>OtpEntity,otp=>otp.user,{onDelete:'CASCADE'})
+  @JoinColumn({name:'otpId'})
   otp:OtpEntity
 }
