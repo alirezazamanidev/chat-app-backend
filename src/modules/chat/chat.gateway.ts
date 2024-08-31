@@ -3,6 +3,7 @@ import {
   OnGatewayDisconnect,
   OnGatewayInit,
   WebSocketGateway,
+  WebSocketServer,
 } from '@nestjs/websockets';
 import { ConnectedUserService } from './services/connectedUser.service';
 import { Logger, UnauthorizedException, UseFilters } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { AuthMessage } from 'src/common/enums/messages.enum';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from '../auth/types/payload.type';
 import { WsExceptionFilter } from 'src/common/filters';
+import { RoomService } from './services/room.service';
 @UseFilters(WsExceptionFilter)
 
 @WebSocketGateway(4600, { cors: { origin: '*' } })
@@ -19,9 +21,11 @@ export class ChatGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
 {
   private readonly logger = new Logger(ChatGateway.name);
+  @WebSocketServer() server:Server
   constructor(
     private readonly connectedUserService: ConnectedUserService,
     private readonly jwtService: JwtService,
+    private readonly roomService:RoomService
   ) {}
   async afterInit() {
     this.logger.log('ChatGateWay initialized!');
@@ -51,7 +55,10 @@ export class ChatGateway
     userPayload: JwtPayload,
     socket: Socket,
   ) {
+    socket.data.user=userPayload;
     await this.connectedUserService.create(userPayload.userId, socket.id);
+    const rooms=await this.roomService.findByUserId(userPayload.userId);
+    this.server.to(socket.id).emit('userAllRooms',rooms);
     this.logger.log(
       `Client connected: ${socket.id} - User ID: ${userPayload.userId}`,
     );

@@ -11,4 +11,6 @@ export class ConnectedUserEntity extends BaseEntity {
     socketId:string
     @CreateDateColumn()
     created_at:Date
+
+  
 }

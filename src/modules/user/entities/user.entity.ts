@@ -1,7 +1,8 @@
 import { BaseEntity } from 'src/common/abstracts/baseEntity.abstract';
 import { EntityName } from 'src/common/enums/EntityNames.enum';
-import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToMany, OneToOne, UpdateDateColumn } from 'typeorm';
 import { OtpEntity } from './otp.entity';
+import { RoomEntity } from 'src/modules/chat/entities/room.entity';
 
 @Entity(EntityName.User)
 export class UserEntity extends BaseEntity {
@@ -22,4 +23,6 @@ export class UserEntity extends BaseEntity {
   @OneToOne(()=>OtpEntity,otp=>otp.user,{onDelete:'CASCADE'})
   @JoinColumn({name:'otpId'})
   otp:OtpEntity
+  @ManyToMany(() => RoomEntity, (room) => room.participants)
+  rooms: RoomEntity[];
 }
