@@ -23,6 +23,6 @@ export class UserEntity extends BaseEntity {
   @OneToOne(()=>OtpEntity,otp=>otp.user,{onDelete:'CASCADE'})
   @JoinColumn({name:'otpId'})
   otp:OtpEntity
-  @ManyToMany(() => RoomEntity, (room) => room.participants)
+  @ManyToMany(() => RoomEntity, (room) => room.participants,{onDelete:'CASCADE'})
   rooms: RoomEntity[];
 }

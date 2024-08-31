@@ -4,5 +4,6 @@ export enum EntityName {
     UserOtp='user_otp',
     Message='message',
     Room='room',
-    ConnectedUser='connected_user'
+    ConnectedUser='connected_user',
+    RoomParticipantsUser='roomParticipantsUser'
 }
