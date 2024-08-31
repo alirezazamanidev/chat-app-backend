@@ -25,6 +25,7 @@ import { RoomService } from './services/room.service';
 import { WsCurrentUser } from 'src/common/decorators/ws-currentUser.decorator';
 import { CreateRoomDto } from './dtos/room/create-room.dto';
 import { RoomTypeEnum } from './enums/room-type.enum';
+import { UserEntity } from '../user/entities/user.entity';
 @UseFilters(WsExceptionFilter)
 @WebSocketGateway(4600, { cors: { origin: '*' } })
 export class ChatGateway
@@ -59,21 +60,32 @@ export class ChatGateway
     @MessageBody(new ValidationPipe()) createRoomDto: CreateRoomDto,
   ) {
     try {
-      
-      
       this.validateRoomTypeAndParticipants(
         createRoomDto.type,
         createRoomDto.participants,
         currentUser.userId,
       );
-      
-     
+
       const newRoom = await this.roomService.create(
         currentUser.userId,
         createRoomDto,
       );
-     const createdRoomWithDetails=await this.roomService
-    } catch (error) {}
+      const createdRoomWithDetails = await this.roomService.findOne(
+        currentUser.userId,
+        newRoom.id,
+      );
+      await this.notifyRoomParticipants(
+        createdRoomWithDetails.participants,
+        'roomCreated',
+        createdRoomWithDetails,
+      );
+      this.logger.log(
+        `Room with ID ${newRoom.id} created and participants notified successfully.`,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to create room: ${error.message}`, error.stack);
+      throw new WsException('Error occurred while creating the room.');
+    }
   }
   private handleConnectionError(socket: Socket, error: Error): void {
     this.logger.error(
@@ -82,7 +94,49 @@ export class ChatGateway
     socket.emit('exception', 'Authentication error');
     socket.disconnect();
   }
+  private async notifyRoomParticipants(
+    participants: UserEntity[],
+    event: string,
+    payload: any,
+  ): Promise<void> {
+    const notificationPromises = participants.flatMap((participant) =>
+      participant.connectedUsers.map(({ socketId }) => ({
+        socketId,
+        promise: this.emitToSocket(socketId, event, payload),
+      })),
+    );
+    const results = await Promise.allSettled(
+      notificationPromises.map((np) => np.promise),
+    );
+    results.forEach((result, index) => {
+      const { socketId } = notificationPromises[index];
+      if (result.status === 'fulfilled') {
+        this.logger.log(
+          `Notification sent successfully to Socket ID ${socketId} for event '${event}'`,
+        );
+      } else if (result.status === 'rejected') {
+        this.logger.error(
+          `Failed to notify Socket ID ${socketId} for event '${event}': ${result.reason}`,
+        );
+      }
+    });
+  }
 
+  private async emitToSocket(
+    socketId: string,
+    event: string,
+    payload: any,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.server.to(socketId).emit(event, payload, (response: any) => {
+        if (response && response.error) {
+          reject(new Error(response.error));
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
   private validateRoomTypeAndParticipants(
     roomType: string,
     participants: string[],

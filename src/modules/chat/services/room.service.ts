@@ -30,8 +30,7 @@ export class RoomService {
         createdById: userId,
       });
       const savedRoom = await this.roomRepository.save(newRoom);
-      
-      
+
       if (participants && participants.length > 0) {
         participants.push(userId);
         await this.assignUsersToRoom(userId, {
@@ -39,6 +38,7 @@ export class RoomService {
           participants,
         });
       }
+      return savedRoom;
     } catch (error) {
       this.logger.error(`Failed to create room: ${error.message}`, error.stack);
       throw new WsException('Error occurred while creating the room.');
@@ -82,11 +82,40 @@ export class RoomService {
       );
     }
   }
+  async findOne(userId: string, id: string) {
+    try {
+      const room = await this.roomRepository.findOne({
+        where: { id },
+        relations: ['participants', 'participants.connectedUsers', 'messages'],
+      });
+      if (!room) {
+        throw new WsException(`Room with ID "${id}" not found.`);
+      }
+      const isParticipant = room.participants.some(
+        (participant) => participant.id === userId,
+      );
+      if (!isParticipant) {
+        throw new WsException(
+          `User with ID "${userId}" is not a participant of room with ID "${id}".`,
+        );
+      }
+      room.participants = room.participants.map((participant) => {
+        let { phone, phone_verify, ...sanitizedUser } = participant;
+        return sanitizedUser as UserEntity;
+      });
+      return room;
+    } catch (error) {
+      this.logger.error(
+        `Failed to find room with ID ${id} for user ID ${userId}: ${error.message}`,
+        error.stack,
+      );
+      throw new WsException('Error occurred while retrieving the room.');
+    }
+  }
   private async assignUsersToRoom(
     userId: string,
     assignUsersDto: AssignUsersDto,
   ) {
-    
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -94,26 +123,28 @@ export class RoomService {
       const existingParticipants = await queryRunner.manager.find(
         RoomParticipantsUserEntity,
         {
-         where:{
-            roomId:assignUsersDto.roomId
-         }
+          where: {
+            roomId: assignUsersDto.roomId,
+          },
         },
       );
-    
-      const operationType =
-          existingParticipants.length > 0 ? 're-assigned' : 'assigned';
 
-      await queryRunner.manager.delete(RoomParticipantsUserEntity,{
-        roomId:assignUsersDto.roomId
+      const operationType =
+        existingParticipants.length > 0 ? 're-assigned' : 'assigned';
+
+      await queryRunner.manager.delete(RoomParticipantsUserEntity, {
+        roomId: assignUsersDto.roomId,
       });
       const participantsToAssign = assignUsersDto.participants.map(
         (participantId) => ({
           roomId: assignUsersDto.roomId,
           userId: participantId,
-     
         }),
       );
-      await queryRunner.manager.save(RoomParticipantsUserEntity,participantsToAssign);
+      await queryRunner.manager.save(
+        RoomParticipantsUserEntity,
+        participantsToAssign,
+      );
       this.logger.log(
         `Users ${operationType} to room ${assignUsersDto.roomId} successfully.`,
       );

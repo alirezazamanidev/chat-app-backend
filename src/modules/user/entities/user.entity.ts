@@ -1,8 +1,9 @@
 import { BaseEntity } from 'src/common/abstracts/baseEntity.abstract';
 import { EntityName } from 'src/common/enums/EntityNames.enum';
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToMany, OneToOne, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToMany, OneToMany, OneToOne, UpdateDateColumn } from 'typeorm';
 import { OtpEntity } from './otp.entity';
 import { RoomEntity } from 'src/modules/chat/entities/room.entity';
+import { ConnectedUserEntity } from 'src/modules/chat/entities/connectedUser.entity';
 
 @Entity(EntityName.User)
 export class UserEntity extends BaseEntity {
@@ -25,4 +26,6 @@ export class UserEntity extends BaseEntity {
   otp:OtpEntity
   @ManyToMany(() => RoomEntity, (room) => room.participants,{onDelete:'CASCADE'})
   rooms: RoomEntity[];
+  @OneToMany(()=>ConnectedUserEntity,cu=>cu.user)
+  connectedUsers:ConnectedUserEntity[]
 }
